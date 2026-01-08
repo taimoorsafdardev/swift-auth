@@ -1,108 +1,119 @@
-# Swift Auth 🚀
+<div align="center">
 
-A lightweight, type-safe authentication library for Next.js 15/16 and Upstash Redis. Swift Auth handles the heavy lifting of session management, password security, and cookie handling so you can focus on building your features.
+# ⚡ Swift Auth
 
-![npm](https://img.shields.io/npm/v/swift-auth?style=flat-square)
-![license](https://img.shields.io/npm/l/swift-auth?style=flat-square)
-![typescript](https://img.shields.io/badge/typescript-blue?style=flat-square&logo=typescript)
+**Type-safe, zero-hassle authentication for Next.js**
 
-## Table of Contents
+[![npm version](https://img.shields.io/npm/v/swift-auth?style=flat-square&color=0ea5e9)](https://www.npmjs.com/package/swift-auth)
+[![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen?style=flat-square)](https://nodejs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0%2B-blue?style=flat-square)](https://www.typescriptlang.org)
+[![Next.js](https://img.shields.io/badge/Next.js-15%2B-black?style=flat-square)](https://nextjs.org)
 
-- [Features](#features)
-- [Installation](#installation)
-- [Prerequisites](#prerequisites)
-- [Quick Start](#quick-start)
-- [Configuration](#configuration)
-- [Core Usage](#core-usage)
-- [Password Security](#password-security)
-- [API Reference](#api-reference)
-- [Why Swift Auth?](#why-swift-auth)
-- [Troubleshooting](#troubleshooting)
-- [License](#license)
+_Lightweight • Secure • Type-Safe • Production-Ready_
 
-## Features
+[Quick Start](#-quick-start) • [API Reference](#-api-reference) • [Examples](#-full-login-example) • [Troubleshooting](#-troubleshooting)
 
-✨ **Type-Safe**: Full TypeScript support with generic user types
-🔐 **Secure**: Built-in password hashing with scrypt and timing-safe comparison
-🍪 **Cookie Handling**: Automatic HTTP-only cookie management
-⚡ **Next.js 15+**: Fully compatible with the asynchronous `cookies()` API
-📦 **Minimal**: Only includes what you need—control exactly what's stored in Redis
-🌍 **Production Ready**: Automatic secure flag handling for dev/production environments
+</div>
 
-## Installation
+---
+
+## 🌟 Why Swift Auth?
+
+Stop wrestling with authentication boilerplate. Swift Auth handles **session management**, **password security**, and **cookie handling**—so you can focus on building amazing features.
+
+Built for **Next.js 15/16** with **Upstash Redis**, optimized for type safety and security.
+
+---
+
+## ✨ Key Features
+
+| Feature                  | Description                                          |
+| ------------------------ | ---------------------------------------------------- |
+| 🔐 **Type-Safe**         | Full TypeScript support with generic user types      |
+| 🛡️ **Secure by Default** | Password hashing via scrypt + timing-safe comparison |
+| 🍪 **Smart Cookies**     | Automatic HTTP-only cookies (dev & production)       |
+| ⚡ **Next.js 15+**       | Works seamlessly with async `cookies()` API          |
+| 📦 **Minimal Footprint** | You control what's stored in Redis                   |
+| 🚀 **Zero Crypto Deps**  | No external dependencies for hashing                 |
+| ✅ **Production-Ready**  | Battle-tested session management                     |
+
+---
+
+## 📦 Installation
+
+Install Swift Auth using your favorite package manager:
 
 ```bash
 npm install swift-auth
 ```
 
-Or with yarn:
+**Or with yarn/pnpm:**
 
 ```bash
 yarn add swift-auth
-```
-
-Or with pnpm:
-
-```bash
+# or
 pnpm add swift-auth
 ```
 
-## Prerequisites
+---
 
-- Node.js 18+
-- Next.js 15 or 16
-- [Upstash Redis](https://upstash.com) account with connection credentials
+## 🎯 Quick Start (5 minutes)
 
-## Quick Start
+### Step 1️⃣ Prerequisites
 
-1. **Set up environment variables**:
+Make sure you have:
 
-```bash
-REDIS_URL=https://<your-redis-url>
-REDIS_TOKEN=<your-redis-token>
+- **Node.js** 18+
+- **Next.js** 15 or 16
+- **PostgreSQL** (via Prisma)
+- **Upstash Redis** account
+
+### Step 2️⃣ Environment Variables
+
+Create a `.env.local` file:
+
+```env
+DATABASE_URL=postgresql://user:password@localhost:5432/mydb
+REDIS_URL=https://your-instance.upstash.io
+REDIS_TOKEN=your_auth_token
 ```
 
-2. **Initialize auth in a shared file** (`lib/auth.ts`):
+### Step 3️⃣ Database Setup
 
-```typescript
-import { createAuth } from "swift-auth";
+Configure your Prisma schema with the `user` model:
 
-export type User = {
-  id: string;
-  name: string;
-  email: string;
-  created_at: Date;
-};
+```prisma
+// prisma/schema.prisma
 
-export const auth = createAuth<User>({
-  redis: {
-    url: process.env.REDIS_URL!,
-    token: process.env.REDIS_TOKEN!,
-  },
-  ttl: 60 * 60 * 24 * 7, // 7 Days
-  sessionFields: ["id", "name", "email", "created_at"],
-});
-```
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
 
-3. **Use in your Server Action** (login example):
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
 
-```typescript
-"use server";
-
-import { auth } from "@/lib/auth";
-import { cookies } from "next/headers";
-
-export async function signIn(user: User) {
-  const cookieStore = await cookies();
-  await auth.createUserSession(user, cookieStore);
+model user {
+  id         String   @id @default(uuid())
+  name       String
+  email      String   @unique
+  password   String
+  salt       String   // ⚠️ MUST be STRING
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 }
 ```
 
-## Configuration
+> ⚠️ **Critical**: Salt must be stored as a `String`, not Buffer or Bytes.
 
-Initialize your auth instance in a shared file (e.g., `lib/auth.ts`). This ensures your Redis client and session settings are consistent across your app.
+### Step 4️⃣ Create Auth Instance
 
 ```typescript
+// lib/auth.ts
+
 import { createAuth } from "swift-auth";
 
 export type User = {
@@ -110,7 +121,6 @@ export type User = {
   name: string;
   email: string;
   created_at: Date;
-  // ... any other fields
 };
 
 export const auth = createAuth<User>({
@@ -118,25 +128,28 @@ export const auth = createAuth<User>({
     url: process.env.REDIS_URL!,
     token: process.env.REDIS_TOKEN!,
   },
-  ttl: 60 * 60 * 24 * 7, // 7 Days in seconds
-  sessionFields: ["id", "name", "email", "created_at"], // Only these fields are stored in Redis
+  ttl: 60 * 60 * 24 * 7, // 7 days
+  sessionFields: ["id", "name", "email", "created_at"],
 });
 ```
 
 **Configuration Options:**
 
-- `redis.url`: Your Upstash Redis connection URL
-- `redis.token`: Your Upstash Redis authentication token
-- `ttl`: Session time-to-live in seconds (default: 7 days)
-- `sessionFields`: Array of user properties to persist in Redis
+| Option          | Type       | Description               |
+| --------------- | ---------- | ------------------------- |
+| `redis.url`     | `string`   | Upstash Redis URL         |
+| `redis.token`   | `string`   | Upstash Redis token       |
+| `ttl`           | `number`   | Session TTL in seconds    |
+| `sessionFields` | `string[]` | Fields persisted in Redis |
 
-## Core Usage
+---
 
-### Create a Session (Login)
+## 🔐 Core Usage
 
-Use this inside a Next.js Server Action. It automatically generates a secure Session ID, stores the user data in Redis, and sets an HTTP-only cookie.
+### Create Session (Login)
 
 ```typescript
+// app/actions/auth.ts
 "use server";
 
 import { auth } from "@/lib/auth";
@@ -150,9 +163,8 @@ export async function signIn(user: User) {
 
 ### Get Current User
 
-Retrieve the session data in any Server Component or Layout.
-
 ```typescript
+// app/dashboard/page.tsx
 import { auth } from "@/lib/auth";
 import { cookies } from "next/headers";
 
@@ -160,29 +172,28 @@ export default async function Dashboard() {
   const user = await auth.getCurrentUser(await cookies());
 
   if (!user) return <div>Please log in</div>;
-  return <div>Welcome back, {user.name}</div>;
+  return <div>Welcome back, {user.name}! 👋</div>;
 }
 ```
 
-### Update User Session
-
-Modify session data without creating a new session ID:
+### Update Session
 
 ```typescript
+// app/actions/auth.ts
 "use server";
 
 import { auth } from "@/lib/auth";
 import { cookies } from "next/headers";
 
 export async function updateProfile(user: User) {
-  const cookieStore = await cookies();
-  await auth.updateUserSession(user, cookieStore);
+  await auth.updateUserSession(user, await cookies());
 }
 ```
 
-### End Session (Logout)
+### Logout
 
 ```typescript
+// app/actions/auth.ts
 "use server";
 
 import { auth } from "@/lib/auth";
@@ -193,69 +204,263 @@ export async function signOut() {
 }
 ```
 
-## Password Security
+---
 
-Swift Auth provides built-in helpers for secure password management using Node's `scrypt` and `timingSafeEqual`.
+## 🔒 Password Security
+
+Swift Auth provides built-in password hashing and verification with scrypt.
+
+### Register User
 
 ```typescript
-// 1. Registering a user
 const salt = auth.generateSalt();
-const hashedPassword = await auth.hashPassword("my-password", salt);
+const hashedPassword = await auth.hashPassword("user-password", salt);
 
-// 2. Verifying a user during login
+// Store both hashedPassword and salt as STRINGS in your database
+await prisma.user.create({
+  data: {
+    email: "user@example.com",
+    password: hashedPassword,
+    salt: salt,
+    name: "John Doe",
+  },
+});
+```
+
+### Verify Password During Login
+
+```typescript
 const isValid = await auth.comparePassword({
-  password: "my-password",
-  salt: salt,
-  hashedPassword: hashedPassword,
+  password: "user-password",
+  salt,
+  hashedPassword,
 });
 
-if (isValid) {
-  // Password is correct
-} else {
-  // Password is incorrect
+if (!isValid) {
+  return { success: false, message: "Invalid password" };
 }
 ```
 
-## API Reference
+---
 
-| Method                                 | Description                                             |
-| -------------------------------------- | ------------------------------------------------------- |
-| `getCurrentUser(cookieStore)`          | Returns the session data from Redis based on the cookie |
-| `createUserSession(user, cookieStore)` | Creates a new session and sets the browser cookie       |
-| `updateUserSession(user, cookieStore)` | Updates the Redis data without changing the Session ID  |
-| `removeUserFromSession(cookieStore)`   | Deletes the Redis key and clears the browser cookie     |
-| `hashPassword(password, salt)`         | Hashes a string using scrypt                            |
-| `comparePassword(options)`             | Prevents timing attacks while verifying passwords       |
-| `generateSalt()`                       | Generates a cryptographic salt for password hashing     |
+## 📚 Full Login Example
 
-## Why Swift Auth?
+Complete login flow with Prisma + Zod validation:
 
-- **Next.js 15+ Optimized**: Fully compatible with the new asynchronous `cookies()` API
-- **BigInt & Date Handling**: Built-in serialization for complex JavaScript objects that standard JSON fails to handle
-- **Automatic Secure Cookies**: Intelligently sets `secure: true` in production and `secure: false` for localhost development
-- **Minimized Payload**: By defining `sessionFields`, you control exactly what data lives in your Redis RAM, keeping costs low and performance high
-- **Type-Safe**: Full TypeScript support with generics for your user type
-- **Zero Dependencies**: Uses only Node.js built-ins for cryptography
+### Validation Schema
 
-## Troubleshooting
+```typescript
+// lib/validation.ts
+import { z } from "zod";
 
-### "Redis connection failed"
+export const signInSchema = z
+  .object({
+    email: z.string().email("Invalid email"),
+    password: z.string().min(8, "Password too short"),
+  })
+  .strict();
 
-- Verify your `REDIS_URL` and `REDIS_TOKEN` environment variables
-- Check that your Upstash Redis instance is active
-- Ensure your Node.js version is 18 or higher
+export type SignInInput = z.infer<typeof signInSchema>;
+```
 
-### "Session not found"
+### Server Action
 
-- Confirm the user has a valid cookie set
-- Check that the Redis TTL hasn't expired
-- Verify that `sessionFields` includes the fields you're trying to access
+```typescript
+// app/actions/auth.ts
+"use server";
 
-### Type errors with custom User type
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { signInSchema } from "@/lib/validation";
+import { cookies } from "next/headers";
 
-- Ensure your `User` type is exported from your auth module
-- Import the `User` type in components: `import type { User } from "@/lib/auth"`
+export async function signIn(formData: unknown) {
+  try {
+    // 1. Validate input
+    const parsed = signInSchema.safeParse(formData);
+    if (!parsed.success) {
+      return {
+        success: false,
+        message: "Validation error",
+        errors: parsed.error.flatten(),
+      };
+    }
 
-## License
+    const { email, password } = parsed.data;
+
+    // 2. Find user in database
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      return { success: false, message: "Account not found" };
+    }
+
+    // 3. Verify password (timing-safe)
+    const isCorrectPassword = await auth.comparePassword({
+      hashedPassword: user.password,
+      password,
+      salt: user.salt, // must be string
+    });
+
+    if (!isCorrectPassword) {
+      return { success: false, message: "Invalid password" };
+    }
+
+    // 4. Create session
+    await auth.createUserSession(
+      {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        created_at: user.created_at,
+      },
+      await cookies()
+    );
+
+    return {
+      success: true,
+      message: "Logged in successfully",
+      userId: user.id,
+    };
+  } catch (error) {
+    console.error("Auth Error:", error);
+    return { success: false, message: "Internal server error" };
+  }
+}
+```
+
+---
+
+## 🎯 API Reference
+
+### Session Management
+
+| Method                    | Parameters            | Returns         | Description                          |
+| ------------------------- | --------------------- | --------------- | ------------------------------------ |
+| `getCurrentUser()`        | `cookieStore`         | `User \| null`  | Get the currently authenticated user |
+| `createUserSession()`     | `user`, `cookieStore` | `Promise<void>` | Create a new session                 |
+| `updateUserSession()`     | `user`, `cookieStore` | `Promise<void>` | Update existing session              |
+| `removeUserFromSession()` | `cookieStore`         | `Promise<void>` | Logout user                          |
+
+### Password Management
+
+| Method              | Parameters                           | Returns            | Description                            |
+| ------------------- | ------------------------------------ | ------------------ | -------------------------------------- |
+| `generateSalt()`    | -                                    | `string`           | Generate cryptographically secure salt |
+| `hashPassword()`    | `password`, `salt`                   | `Promise<string>`  | Hash password with scrypt              |
+| `comparePassword()` | `{ password, salt, hashedPassword }` | `Promise<boolean>` | Timing-safe password comparison        |
+
+---
+
+## 🚀 Best Practices
+
+✅ **Do:**
+
+- Store salt as a **STRING** in your database
+- Use environment variables for Redis credentials
+- Call `signOut()` before navigating to login page
+- Update session after profile changes
+- Use TypeScript for type safety
+
+❌ **Don't:**
+
+- Store salt as Buffer or Bytes
+- Hardcode Redis credentials
+- Compare passwords with `===`
+- Expose session data to client components
+- Use TTL shorter than 1 hour for user experience
+
+---
+
+## 🐛 Troubleshooting
+
+### Redis Connection Failed
+
+**Problem**: `Error: Connection refused`
+
+**Solution:**
+
+```bash
+# Verify your Upstash instance is active
+# Check REDIS_URL and REDIS_TOKEN in .env.local
+echo $REDIS_URL
+```
+
+### Session Not Found / Cookie Missing
+
+**Problem**: User is logged out unexpectedly
+
+**Solution:**
+
+- Check if TTL has expired
+- Verify `sessionFields` includes all required user data
+- Ensure cookie store is being awaited properly
+
+```typescript
+// ✅ Correct
+const cookieStore = await cookies();
+
+// ❌ Wrong
+const cookieStore = cookies();
+```
+
+### Type Errors with User Type
+
+**Problem**: TypeScript complains about User type mismatch
+
+**Solution**: Always export and reuse your User type:
+
+```typescript
+// lib/auth.ts
+export type User = {
+  /* ... */
+};
+
+// app/actions/auth.ts
+import type { User } from "@/lib/auth";
+```
+
+### Password Comparison Always Fails
+
+**Problem**: `comparePassword()` returns false for valid password
+
+**Solution**: Ensure salt is retrieved as a STRING:
+
+```typescript
+// ✅ Correct
+const user = await prisma.user.findUnique({ where: { id } });
+const isValid = await auth.comparePassword({
+  password,
+  salt: user.salt, // string ✓
+  hashedPassword: user.password,
+});
+
+// ❌ Wrong
+salt: user.salt as any; // don't cast!
+```
+
+---
+
+## 📖 More Resources
+
+- [Next.js Cookies API](https://nextjs.org/docs/app/api-reference/functions/cookies)
+- [Upstash Redis Docs](https://upstash.com/docs)
+- [Prisma Documentation](https://www.prisma.io/docs)
+
+---
+
+## 📄 License
 
 MIT © Taimoor Safdar
+
+---
+
+<div align="center">
+
+**Built with ❤️ for the Next.js community**
+
+[⬆ back to top](#-swift-auth)
+
+</div>
