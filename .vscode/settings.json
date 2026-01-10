@@ -1,0 +1,55 @@
+{
+  // ===== Formatting =====
+  "editor.formatOnSave": true,
+  "editor.formatOnPaste": true,
+  "editor.formatOnType": true,
+
+  // Use Prettier as default formatter
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+
+  // Format only changed lines (faster)
+  "editor.formatOnSaveMode": "modifications",
+
+  // ===== Prettier =====
+  "prettier.singleQuote": true,
+  "prettier.semi": true,
+  "prettier.trailingComma": "es5",
+  "prettier.printWidth": 100,
+
+  // ===== ESLint =====
+  "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
+  "eslint.alwaysShowStatus": true,
+  "eslint.run": "onSave",
+
+  // ===== Imports =====
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": true,
+    "source.fixAll.eslint": true
+  },
+
+  // ===== Files =====
+  "files.eol": "\n",
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+
+  // ===== Editor UX =====
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.wordWrap": "on",
+  "editor.minimap.enabled": false,
+
+  // ===== Suggestions =====
+  "editor.quickSuggestions": {
+    "strings": true
+  },
+
+  // ===== TypeScript / JavaScript =====
+  "typescript.preferences.importModuleSpecifier": "non-relative",
+  "javascript.preferences.importModuleSpecifier": "non-relative",
+
+  // ===== Tailwind (if used) =====
+  "tailwindCSS.emmetCompletions": true,
+
+  // ===== Git =====
+  "git.autofetch": true
+}

@@ -1,0 +1,12 @@
+{
+  "recommendations": [
+    "formulahendry.auto-rename-tag",
+    "ms-vscode.vscode-typescript-next",
+    "xabikos.JavaScriptSnippets",
+    "PKief.material-icon-theme",
+    "esbenp.prettier-vscode",
+    "miguelsolorio.symbols",
+    "bradlc.vscode-tailwindcss",
+    "redhat.vscode-yaml"
+  ]
+}
