@@ -37,6 +37,7 @@ Built for **Next.js 15/16** with **Upstash Redis**, optimized for type safety an
 | 📦 **Minimal Footprint** | You control what's stored in Redis                   |
 | 🚀 **Zero Crypto Deps**  | No external dependencies for hashing                 |
 | ✅ **Production-Ready**  | Battle-tested session management                     |
+| 🔄 **Flexible Hashing**  | Use built-in scrypt or bring your own encryption     |
 
 ---
 
@@ -79,9 +80,13 @@ REDIS_URL=https://your-instance.upstash.io
 REDIS_TOKEN=your_auth_token
 ```
 
-### Step 3️⃣ Database Setup
+### Step 3️⃣ Database Setup & Password Hashing
 
-Configure your Prisma schema with the `user` model:
+Choose your password hashing approach:
+
+#### Option A: Use Swift Auth's Built-in Hashing (Recommended)
+
+Configure your Prisma schema with the `user` model including salt:
 
 ```prisma
 // prisma/schema.prisma
@@ -101,13 +106,89 @@ model user {
   name       String
   email      String   @unique
   password   String
-  salt       String   // ⚠️ MUST be STRING
+  salt       String   // Required for built-in hashing
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 }
 ```
 
 > ⚠️ **Critical**: Salt must be stored as a `String`, not Buffer or Bytes.
+
+#### Option B: Use Your Own Encryption Method
+
+If you prefer your own password hashing logic, omit the `salt` field:
+
+```prisma
+model user {
+  id         String   @id @default(uuid())
+  name       String
+  email      String   @unique
+  password   String   // Your pre-encrypted password
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+```
+
+---
+
+## 🔒 Password Management
+
+### Option A: Swift Auth Built-in Hashing
+
+#### Generate Salt & Hash Password
+
+```typescript
+const salt = auth.generateSalt();
+const hashedPassword = await auth.hashPassword("user-password", salt);
+
+// Store both hashedPassword and salt as STRINGS in your database
+await prisma.user.create({
+  data: {
+    email: "user@example.com",
+    password: hashedPassword,
+    salt: salt,
+    name: "John Doe",
+  },
+});
+```
+
+#### Verify Password During Login
+
+```typescript
+const isValid = await auth.comparePassword({
+  password: "user-password",
+  salt,
+  hashedPassword,
+});
+
+if (!isValid) {
+  return { success: false, message: "Invalid password" };
+}
+```
+
+### Option B: Custom Encryption
+
+Use your own encryption method before storing in the database:
+
+```typescript
+import bcrypt from "bcrypt"; // or any other method
+
+// During registration
+const hashedPassword = await bcrypt.hash("user-password", 10);
+
+await prisma.user.create({
+  data: {
+    email: "user@example.com",
+    password: hashedPassword,
+    name: "John Doe",
+  },
+});
+
+// During login verification
+const isValid = await bcrypt.compare("user-password", user.password);
+```
+
+---
 
 ### Step 4️⃣ Create Auth Instance
 
@@ -129,18 +210,18 @@ export const auth = createAuth<User>({
     token: process.env.REDIS_TOKEN!,
   },
   ttl: 60 * 60 * 24 * 7, // 7 days
-  sessionFields: ["id", "name", "email", "created_at"],
+  payload: ["id", "name", "email", "created_at"],
 });
 ```
 
 **Configuration Options:**
 
-| Option          | Type       | Description               |
-| --------------- | ---------- | ------------------------- |
-| `redis.url`     | `string`   | Upstash Redis URL         |
-| `redis.token`   | `string`   | Upstash Redis token       |
-| `ttl`           | `number`   | Session TTL in seconds    |
-| `sessionFields` | `string[]` | Fields persisted in Redis |
+| Option        | Type       | Description               |
+| ------------- | ---------- | ------------------------- |
+| `redis.url`   | `string`   | Upstash Redis URL         |
+| `redis.token` | `string`   | Upstash Redis token       |
+| `ttl`         | `number`   | Session TTL in seconds    |
+| `payload`     | `string[]` | Fields persisted in Redis |
 
 ---
 
@@ -206,43 +287,6 @@ export async function signOut() {
 
 ---
 
-## 🔒 Password Security
-
-Swift Auth provides built-in password hashing and verification with scrypt.
-
-### Register User
-
-```typescript
-const salt = auth.generateSalt();
-const hashedPassword = await auth.hashPassword("user-password", salt);
-
-// Store both hashedPassword and salt as STRINGS in your database
-await prisma.user.create({
-  data: {
-    email: "user@example.com",
-    password: hashedPassword,
-    salt: salt,
-    name: "John Doe",
-  },
-});
-```
-
-### Verify Password During Login
-
-```typescript
-const isValid = await auth.comparePassword({
-  password: "user-password",
-  salt,
-  hashedPassword,
-});
-
-if (!isValid) {
-  return { success: false, message: "Invalid password" };
-}
-```
-
----
-
 ## 📚 Full Login Example
 
 Complete login flow with Prisma + Zod validation:
@@ -297,12 +341,16 @@ export async function signIn(formData: unknown) {
       return { success: false, message: "Account not found" };
     }
 
-    // 3. Verify password (timing-safe)
+    // 3. Verify password (choose your method)
+    // Option A: Using Swift Auth's built-in method
     const isCorrectPassword = await auth.comparePassword({
       hashedPassword: user.password,
       password,
-      salt: user.salt, // must be string
+      salt: user.salt, // if using built-in hashing
     });
+
+    // Option B: Using custom encryption (e.g., bcrypt)
+    // const isCorrectPassword = await bcrypt.compare(password, user.password);
 
     if (!isCorrectPassword) {
       return { success: false, message: "Invalid password" };
@@ -344,7 +392,7 @@ export async function signIn(formData: unknown) {
 | `updateUserSession()`     | `user`, `cookieStore` | `Promise<void>` | Update existing session              |
 | `removeUserFromSession()` | `cookieStore`         | `Promise<void>` | Logout user                          |
 
-### Password Management
+### Password Management (Optional - Built-in only)
 
 | Method              | Parameters                           | Returns            | Description                            |
 | ------------------- | ------------------------------------ | ------------------ | -------------------------------------- |
@@ -358,7 +406,8 @@ export async function signIn(formData: unknown) {
 
 ✅ **Do:**
 
-- Store salt as a **STRING** in your database
+- Choose a hashing method before building your database schema
+- Store salt as a **STRING** if using Swift Auth's hashing
 - Use environment variables for Redis credentials
 - Call `signOut()` before navigating to login page
 - Update session after profile changes
@@ -366,9 +415,10 @@ export async function signIn(formData: unknown) {
 
 ❌ **Don't:**
 
-- Store salt as Buffer or Bytes
+- Mix hashing methods (pick one and stick with it)
+- Store salt as Buffer or Bytes (if using built-in hashing)
 - Hardcode Redis credentials
-- Compare passwords with `===`
+- Compare passwords manually with `===`
 - Expose session data to client components
 - Use TTL shorter than 1 hour for user experience
 
@@ -395,7 +445,7 @@ echo $REDIS_URL
 **Solution:**
 
 - Check if TTL has expired
-- Verify `sessionFields` includes all required user data
+- Verify `payload` includes all required user data
 - Ensure cookie store is being awaited properly
 
 ```typescript
@@ -422,7 +472,7 @@ export type User = {
 import type { User } from "@/lib/auth";
 ```
 
-### Password Comparison Always Fails
+### Password Comparison Always Fails (Built-in Hashing)
 
 **Problem**: `comparePassword()` returns false for valid password
 
@@ -464,3 +514,4 @@ MIT © Taimoor Safdar
 [⬆ back to top](#-swift-auth)
 
 </div>
+

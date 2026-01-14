@@ -1,8 +1,8 @@
 import { Redis } from "@upstash/redis";
-import { Cookies } from "./cookie";
+import { Cookies } from "./cookie.js";
 
 export type AuthInstance<UserType extends Record<string, unknown>> = {
-    _sessionFields: (keyof UserType)[];
+    _payload: (keyof UserType)[];
     _redis: Redis;
     _ttl: number;
 

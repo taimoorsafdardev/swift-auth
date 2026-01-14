@@ -1,14 +1,14 @@
-import { stringifyBigInt, generateSessionId } from "./utils";
-import {
-    getSessionId,
-    deleteSessionCookie,
-    Cookies,
-} from "./cookie";
-import { COOKIE_SESSION_KEY } from "./keys";
 import { Redis } from "@upstash/redis";
+import {
+    Cookies,
+    deleteSessionCookie,
+    getSessionId,
+} from "./cookie.js";
+import { generateSessionId, stringifyBigInt } from "./utils.js";
+import { COOKIE_SESSION_KEY } from "./keys.js";
 
 export async function getUserFromSession<UserType extends Record<string, unknown>>(
-    auth: { _redis: Redis; _sessionFields: (keyof UserType)[]; _ttl: number },
+    auth: { _redis: Redis; _payload: (keyof UserType)[]; _ttl: number },
     cookies: Pick<Cookies, "get">
 ): Promise<Partial<UserType> | null> {
     const sessionId = cookies.get(COOKIE_SESSION_KEY)?.value;
@@ -22,9 +22,9 @@ export async function getUserFromSession<UserType extends Record<string, unknown
         ? JSON.parse(data)
         : (data as any);
 
-    // Optional: pick only _sessionFields to ensure type safety
+    // Optional: pick only _payload to ensure type safety
     const result: Partial<UserType> = {};
-    for (const key of auth._sessionFields) {
+    for (const key of auth._payload) {
         if (key in sessionData) result[key] = sessionData[key];
     }
 
@@ -32,7 +32,7 @@ export async function getUserFromSession<UserType extends Record<string, unknown
 }
 
 export async function createUserSession<UserType extends Record<string, unknown>>(
-    auth: { _redis: Redis; _sessionFields: (keyof UserType)[]; _ttl: number },
+    auth: { _redis: Redis; _payload: (keyof UserType)[]; _ttl: number },
     user: Partial<UserType>,
     cookies: Pick<Cookies, "set">
 ) {
@@ -40,7 +40,7 @@ export async function createUserSession<UserType extends Record<string, unknown>
 
     // Pick only session fields
     const sessionData: Partial<UserType> = {};
-    for (const key of auth._sessionFields) {
+    for (const key of auth._payload) {
         if (key in user) sessionData[key] = user[key];
     }
 
@@ -61,7 +61,7 @@ export async function createUserSession<UserType extends Record<string, unknown>
 
 
 export async function updateUserSession<UserType extends Record<string, unknown>>(
-    auth: { _redis: Redis; _sessionFields: (keyof UserType)[]; _ttl: number },
+    auth: { _redis: Redis; _payload: (keyof UserType)[]; _ttl: number },
     user: Partial<UserType>,   // ✅ allow partial here
     cookies: Pick<Cookies, "get" | "set">
 ): Promise<void> {
@@ -70,7 +70,7 @@ export async function updateUserSession<UserType extends Record<string, unknown>
 
     // Pick only session fields
     const sessionData: Partial<UserType> = {} as any;
-    for (const key of auth._sessionFields) {
+    for (const key of auth._payload) {
         if (key in user) sessionData[key] = user[key];
     }
 
@@ -82,7 +82,7 @@ export async function updateUserSession<UserType extends Record<string, unknown>
 }
 
 export async function removeUserFromSession<UserType extends Record<string, unknown>>(
-    auth: { _redis: Redis; _sessionFields: (keyof UserType)[]; _ttl: number },
+    auth: { _redis: Redis; _payload: (keyof UserType)[]; _ttl: number },
     cookies: Pick<Cookies, "get" | "delete">
 ) {
     const sessionId = getSessionId(cookies);

@@ -1,77 +1,68 @@
 import crypto from "crypto";
-import { createRedisClient } from "./internal/redis-client";
+import { Cookies } from "./internal/cookie.js";
+import { createRedisClient } from "./internal/redis-client.js";
 import {
     getUserFromSession,
     createUserSession as internalCreateUserSession,
-    updateUserSession as internalUpdateUserSession,
     removeUserFromSession as internalRemoveUserFromSession,
-} from "./internal/session";
-import { AuthInstance, AuthPublic } from "./internal/types";
-import { Cookies } from "./internal/cookie";
+    updateUserSession as internalUpdateUserSession,
+} from "./internal/session.js";
+import { AuthInstance, AuthPublic } from "./internal/types.js";
 
-/**
- * Options for creating an auth instance
- */
-export type CreateAuthOptions<UserType extends Record<string, unknown>> = {
+type RedisConfig = {
+    url: string;
+    token: string;
+}
+
+type CreateAuthOptions<UserType extends Record<string, unknown>> = {
+    redis: RedisConfig;
     ttl: number;
-    redis: {
-        url: string;
-        token: string;
-    };
-    /**
-     * List of user fields to store in session.
-     * Must include 'id'.
-     */
-    sessionFields: (keyof UserType)[];
-};
+    payload: (keyof UserType)[];
+}
 
 /**
  * Create an authentication instance
- * Only exposes public methods, internal fields (_redis, _sessionFields, ttl) are private
  */
 export function createAuth<UserType extends Record<string, unknown>>(
     options: CreateAuthOptions<UserType>
 ): AuthPublic<UserType> {
-    // Ensure 'id' is included in sessionFields
-    if (!options.sessionFields.includes("id" as keyof UserType)) {
-        throw new Error("sessionFields must include `id`");
+    if (!options.payload.includes("id" as keyof UserType)) {
+        throw new Error("payload must include `id`");
     }
 
-    // Internal fields (not exposed)
     const _redis = createRedisClient(options.redis);
-    const _sessionFields = options.sessionFields;
+    const _payload = options.payload;
     const _ttl = options.ttl;
 
-    // The public API
     const auth: AuthInstance<UserType> = {
         _redis,
-        _sessionFields,
+        _payload,
         _ttl,
         // -------------------
         // Session operations
         // -------------------
         getCurrentUser(cookies) {
-            return getUserFromSession({ _redis, _sessionFields, _ttl: _ttl }, cookies);
+            return getUserFromSession({ _redis, _payload, _ttl: _ttl }, cookies);
         },
 
         createUserSession(user, cookies) {
             const sessionData: Partial<UserType> = {} as any;
-            for (const key of _sessionFields) {
+            for (const key of _payload) {
                 if (key in user) sessionData[key] = user[key];
             }
-            return internalCreateUserSession({ _redis, _sessionFields, _ttl: _ttl }, sessionData, cookies);
+            return internalCreateUserSession({ _redis, _payload, _ttl: _ttl }, sessionData, cookies);
         },
 
         updateUserSession(user, cookies: Pick<Cookies, "get" | "set">) {
             const sessionData: Partial<UserType> = {};
-            for (const key of _sessionFields) {
+            for (const key of _payload) {
                 if (key in user) sessionData[key] = user[key];
             }
-            return internalUpdateUserSession({ _redis, _sessionFields, _ttl }, sessionData, cookies);
+            return internalUpdateUserSession({ _redis, _payload, _ttl }, sessionData, cookies);
         },
 
         async removeUserFromSession(cookies) {
-            await internalRemoveUserFromSession({ _redis, _sessionFields, _ttl: _ttl }, cookies);
+            await internalRemoveUserFromSession({ _redis, _payload, _ttl: _ttl }, cookies);
         },
 
         // -------------------

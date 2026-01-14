@@ -1,4 +1,4 @@
-import { COOKIE_SESSION_KEY } from "./keys";
+import { COOKIE_SESSION_KEY } from "./keys.js";
 
 export type Cookies = {
     set: (
